@@ -9,55 +9,80 @@ public class SharedVector {
     private ReadWriteLock lock = new java.util.concurrent.locks.ReentrantReadWriteLock();
 
     public SharedVector(double[] vector, VectorOrientation orientation) {
-        // TODO: store vector data and its orientation
+        this.orientation = orientation; // storing orientation in matching field
+        this.vector = vector; // due to efficiency and to avoid holding unnecesary vectors
     }
 
     public double get(int index) {
-        // TODO: return element at index (read-locked)
-        return 0;
+        return vector[index];
     }
 
     public int length() {
-        // TODO: return vector length
-        return 0;
+        return vector.length;
     }
 
     public VectorOrientation getOrientation() {
-        // TODO: return vector orientation
-        return null;
+        return orientation;
     }
 
     public void writeLock() {
-        // TODO: acquire write lock
+        lock.writeLock().lock(); // accessing lock's writelock and locking it.
     }
 
     public void writeUnlock() {
-        // TODO: release write lock
+        lock.writeLock().unlock(); // accessing lock's writelock and unlocking it.
     }
 
     public void readLock() {
-        // TODO: acquire read lock
+        lock.readLock().lock(); // accessing lock's readlock and locking it.
     }
 
     public void readUnlock() {
-        // TODO: release read lock
+        lock.readLock().unlock(); // accessing lock's readlock and unlocking it.
     }
 
     public void transpose() {
-        // TODO: transpose vector
+        // transposing vector from row to column or opposite
+        if (orientation == VectorOrientation.ROW_MAJOR) {
+            orientation = VectorOrientation.COLUMN_MAJOR;
+        } else {
+            orientation = VectorOrientation.ROW_MAJOR;
+        }
     }
 
     public void add(SharedVector other) {
-        // TODO: add two vectors
+        if (this.length() != other.length()) {
+            throw new IllegalArgumentException("error: Illegal operation: dimensions mismatch"); //throwing exception if size of vectors is not right
+        }
+        if (this.getOrientation() != other.getOrientation()) {
+            throw new IllegalArgumentException("error: Illegal operation: dimensions mismatch"); //throwing exception if both vectors are not same "type" (column \ row)
+        }
+        for (int i = 0; i < vector.length; i++) {
+            this.vector[i] = this.vector[i] + other.get(i); //summing values to this.vector in matching elemnt slots
+        }
     }
 
     public void negate() {
-        // TODO: negate vector
+        for (int i = 0; i < vector.length; i++) { // negating each element in the vector
+            vector[i] = -vector[i];
+        }
     }
 
     public double dot(SharedVector other) {
-        // TODO: compute dot product (row · column)
-        return 0;
+        if (this.length() != other.length()) {
+            throw new IllegalArgumentException("error: Illegal operation: dimensions mismatch"); //throwing exception if size of vectors is not right
+        }
+        if (this.getOrientation() == VectorOrientation.COLUMN_MAJOR) {
+            throw new IllegalArgumentException("error: Illegal operation: left vector is a column vector"); //throwing exception if left vector is not in the right "type" (row * column)
+        }
+        if (other.getOrientation() == VectorOrientation.ROW_MAJOR) {
+            throw new IllegalArgumentException("error: Illegal operation: right vector is a row vector"); //throwing exception if right vector is not in the right "type"  (row * column)
+        }
+        double sum=0;
+        for(int i=0; i<vector.length;i++){
+            sum+= this.vector[i]*other.vector[i];
+        }
+        return sum;
     }
 
     public void vecMatMul(SharedMatrix matrix) {
