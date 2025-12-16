@@ -80,12 +80,31 @@ public class SharedVector {
         }
         double sum=0;
         for(int i=0; i<vector.length;i++){
-            sum+= this.vector[i]*other.vector[i];
+            sum+= this.vector[i]*other.vector[i];        
         }
         return sum;
     }
 
     public void vecMatMul(SharedMatrix matrix) {
-        // TODO: compute row-vector × matrix
+        // Making sure matrix[0] isn't null, in order to check the length of the row.
+        if (matrix.length() > 0 && length() != matrix.get(0).length()) {
+            throw new IllegalArgumentException("error: Illegal operation: dimension mismatch"); //throwing exception if size of vectors and matrix's rows are not equal.
+        }
+        //throwing exception if the vector isn't row.
+        if (this.orientation != VectorOrientation.ROW_MAJOR) {
+            throw new IllegalArgumentException("error: Vector must be row type"); 
+        }
+        //throwing exception if the matrix isn't column.
+        if (matrix.getOrientation() != VectorOrientation.COLUMN_MAJOR) {
+            throw new IllegalArgumentException("error: Matrix must be column type"); 
+        }
+        //creating temp vector for the calculation
+        double[] res = new double [matrix.length()];
+        //doing the multiply by using dot method
+        for (int i = 0 ; i < matrix.length() ; i++) {
+            res[i] = this.dot(matrix.get(i));
+        }
+        // updating vector to be the result
+        this.vector = res;
     }
 }
