@@ -108,6 +108,7 @@ public class TiredThread extends Thread implements Comparable<TiredThread> {
                 // Worker enteres "Idle" time again.
                 this.idleStartTime.set(System.nanoTime());
             }
+        // In case we want to shut down the program and worker is still "waiting", it wakes him up and shut down successfully
         } catch (InterruptedException error) {
         }
     }
