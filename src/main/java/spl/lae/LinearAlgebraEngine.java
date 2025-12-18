@@ -1,10 +1,11 @@
 package spl.lae;
 
-import parser.*;
-import memory.*;
-import scheduling.*;
-
+import java.util.ArrayList;
 import java.util.List;
+
+import memory.SharedMatrix;
+import parser.ComputationNode;
+import scheduling.TiredExecutor;
 
 public class LinearAlgebraEngine {
 
@@ -13,7 +14,7 @@ public class LinearAlgebraEngine {
     private TiredExecutor executor;
 
     public LinearAlgebraEngine(int numThreads) {
-        // TODO: create executor with given thread count
+        executor = new TiredExecutor(numThreads);
     }
 
     public ComputationNode run(ComputationNode computationRoot) {
@@ -27,6 +28,11 @@ public class LinearAlgebraEngine {
     }
 
     public List<Runnable> createAddTasks() {
+        List<Runnable> res = new ArrayList<Runnable>(leftMatrix.length());
+        for (int i = 0 ; i < leftMatrix.length() ; i++) {
+            
+        }
+        
         // TODO: return tasks that perform row-wise addition
         return null;
     }

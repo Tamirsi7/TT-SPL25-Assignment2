@@ -122,4 +122,9 @@ public class SharedMatrix {
             vecs[i].writeUnlock();
         }
     }
+    
+    //adding setter for matrix orientatino
+    public void setOrientation (VectorOrientation orientation) {
+        this.MatrixOrientation = orientation;
+    }
 }
