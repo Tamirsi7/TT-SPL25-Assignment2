@@ -94,7 +94,12 @@ public class TiredThread extends Thread implements Comparable<TiredThread> {
                 this.timeIdle.addAndGet(currTime - idleStartTime.get());
                 this.busy.set(true);
                 // After updatding the relevat fields, worker starting to work
-                task.run();
+                // *using another try catch to make sure worker does not "die" if task fails.
+                try{
+                    task.run();
+                } catch (RuntimeException e){
+                    System.err.println(e.getMessage());
+                }
                 // updating exact "busy time"
                 long timeNow = System.nanoTime();
                 timeUsed.addAndGet(timeNow - currTime);
