@@ -34,8 +34,7 @@ public class TiredExecutor {
             TiredThread currThread = idleMinHeap.take();
             // updating num of inFlights with atomic method
             inFlight.incrementAndGet();
-            // creating lambda function (one-time use class), to make sure workers return to
-            // the heap after running.
+            // creating lambda function (one-time use class), to make sure workers return to the heap after running.
             Runnable boomerangTask = () -> {
                 try {
                     task.run();

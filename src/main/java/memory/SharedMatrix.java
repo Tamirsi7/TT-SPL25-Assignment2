@@ -51,10 +51,10 @@ public class SharedMatrix {
     }
 
     public double[][] readRowMajor() {
-        SharedVector[] currVectors = this.vectors; // keeping vectors in current variable to make sure we keep read from
-                                                   // the right vectors
-        acquireAllVectorReadLocks(currVectors);// locking all readlocks of curr vectors because we are about to read the
-                                               // elements from matrix (so no one can write other values)
+        // keeping vectors in current variable to make sure we keep read from the right vectors
+        SharedVector[] currVectors = this.vectors;
+        // locking all readlocks of curr vectors because we are about to read the elements from matrix (so no one can write other values)
+        acquireAllVectorReadLocks(currVectors);                                    
         double[][] resultMatrix;
         try {
             if (currVectors.length == 0) { // if vectors is empty return empty matrix
