@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import memory.SharedMatrix;
+import memory.SharedVector;
 import memory.VectorOrientation;
 import parser.ComputationNode;
 import parser.ComputationNodeType;
@@ -20,8 +21,24 @@ public class LinearAlgebraEngine {
     }
 
     public ComputationNode run(ComputationNode computationRoot) {
-        // TODO: resolve computation tree step by step until final matrix is produced
-        return null;
+
+        if (computationRoot.getNodeType() == ComputationNodeType.MATRIX) {
+            return computationRoot;
+        }
+
+        while (computationRoot.getNodeType() != ComputationNodeType.MATRIX) { 
+            ComputationNode curr = computationRoot.findResolvable();
+            if (curr == null) {
+                break;
+            }
+
+            if (curr.getChildren().size() > 2) {
+                curr.associativeNesting();
+                continue;
+            }
+            loadAndCompute(curr);
+        }
+        return computationRoot;
     }
 
     public void loadAndCompute(ComputationNode node) {
@@ -70,7 +87,20 @@ public class LinearAlgebraEngine {
             final int index = i;
             // creating lambda for future task, adding the matching row vector from the right matrix to the left
             res.add(() -> {
-                leftMatrix.get(index).add(rightMatrix.get(index));
+                // locking the relevant vectors for write/read in each matrix
+                SharedVector v1 = leftMatrix.get(index);
+                SharedVector v2 = rightMatrix.get(index);
+                // lock write to left vector, lock read to right vector
+                v1.writeLock();
+                v2.readLock();
+                // applying add method on the vectors
+                try {
+                    v1.add(v2);
+                } finally {
+                // unlocking both vectors in opposite order
+                    v2.readUnlock();
+                    v1.writeUnlock();
+                }
             });
         }
         return res;
@@ -85,8 +115,23 @@ public class LinearAlgebraEngine {
             final int index = i;
             // creating lambda for future task, perform row × matrix for each row in the left matrix.
             res.add(() -> {
-                // assuming that the right matrix was loaded as column.major
-                leftMatrix.get(index).vecMatMul(rightMatrix);
+                SharedVector v1 = leftMatrix.get(index);
+                // locking left matrix vector to write before multiplying
+                v1.writeLock();
+                // locking all vectors in right matrix for read
+                for (int j = 0 ; j < rightMatrix.length() ; j++) {
+                    rightMatrix.get(j).readLock();
+                }
+                // applying multiply method on vector x rightMatrix
+                try {
+                    v1.vecMatMul(rightMatrix);
+                // unlocking all vectors 
+                } finally {
+                    for (int k = 0 ; k < rightMatrix.length() ; k++) {
+                        rightMatrix.get(k).readUnlock();
+                    }
+                }
+                v1.writeUnlock();
             });
         }
         return res;
@@ -101,7 +146,14 @@ public class LinearAlgebraEngine {
             final int index = i;
             // creating lambda for future task, perform negate method for each row in the left matrix.
             res.add(() -> {
-                leftMatrix.get(index).negate();
+                SharedVector v1 = leftMatrix.get(index);
+                // locking leftMatrix vector for write, performing negate and then unlocking:
+                v1.writeLock();
+                try {
+                    v1.negate();
+                } finally {
+                    v1.writeUnlock();
+                }
             });
         }
         return res;
@@ -116,7 +168,14 @@ public class LinearAlgebraEngine {
             final int index = i;
             // creating lambda for future task, perform transpose method for each row in the left matrix.
             res.add(() -> {
-                leftMatrix.get(index).transpose();
+                SharedVector v1 = leftMatrix.get(index);
+                // locking leftMatrix vector for write, performing transform and then unlocking:
+                v1.writeLock();
+                try {
+                    v1.transpose();
+                } finally {
+                    v1.writeUnlock();    
+                }
             });
         }
         return res;
