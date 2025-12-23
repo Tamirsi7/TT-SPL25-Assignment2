@@ -21,21 +21,25 @@ public class LinearAlgebraEngine {
     }
 
     public ComputationNode run(ComputationNode computationRoot) {
-
+        //if the given root is matrix type - return it
         if (computationRoot.getNodeType() == ComputationNodeType.MATRIX) {
             return computationRoot;
         }
-
+        //while root is not a matrix 
         while (computationRoot.getNodeType() != ComputationNodeType.MATRIX) { 
+            //find a resolvable node
             ComputationNode curr = computationRoot.findResolvable();
+            //if resolveable node is null -> he is a matrix, so stop the loop
             if (curr == null) {
                 break;
             }
-
+            //if resolveable node has more than 2 children - "fix the tree" with associativeNesting method
             if (curr.getChildren().size() > 2) {
                 curr.associativeNesting();
+                //dont try to compute curr node - we will find the node in future iterations
                 continue;
             }
+            //load and compute curr node 
             loadAndCompute(curr);
         }
         return computationRoot;

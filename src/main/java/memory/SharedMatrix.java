@@ -13,8 +13,9 @@ public class SharedMatrix {
     public SharedMatrix(double[][] matrix) {
         loadRowMajor(matrix); // using loadRowMajor mthod to replace internal data with rowmajor matrix
     }
-
+    
     public void loadRowMajor(double[][] matrix) {
+        //we dont need to lock the matrix because no thread "knows" the loaded matrix and old matrix is irrelevant
         // initializing this.orientation and vectors according to given matrix
         this.MatrixOrientation = VectorOrientation.ROW_MAJOR;
         this.vectors = new SharedVector[matrix.length];
@@ -26,6 +27,7 @@ public class SharedMatrix {
     }
 
     public void loadColumnMajor(double[][] matrix) {
+        //we dont need to lock the matrix because no thread "knows" the loaded matrix and old matrix is irrelevant
         // initializing this.orientation according to given matrix
         this.MatrixOrientation = VectorOrientation.COLUMN_MAJOR;
 
