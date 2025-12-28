@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test;
 import parser.ComputationNode;
 import parser.ComputationNodeType;
 import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.List;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -104,8 +105,11 @@ class LinearAlgebraEngineTest {
         ComputationNode n2 = new ComputationNode(d2);
         ComputationNode n3 = new ComputationNode(d3);
         
+        // wrap in arraylist to make sure we can adjust the array length
+        List<ComputationNode> children = new ArrayList<>(Arrays.asList(n1, n2, n3));
+        
         // Create node with 3 children
-        ComputationNode root = new ComputationNode(ComputationNodeType.ADD, Arrays.asList(n1, n2, n3));
+        ComputationNode root = new ComputationNode(ComputationNodeType.ADD, children);
         
         ComputationNode resultNode = engine.run(root);
         double[][] result = resultNode.getMatrix();
