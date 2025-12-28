@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test;
 import parser.ComputationNode;
 import parser.ComputationNodeType;
 import java.util.Arrays;
+import java.util.List;
 import static org.junit.jupiter.api.Assertions.*;
 
 class LinearAlgebraEngineTest {
@@ -88,5 +89,44 @@ class LinearAlgebraEngineTest {
         
         assertEquals(-1.0, result[0][0]);
         assertEquals(1.0, result[0][1]);
+    }
+
+    @Test
+    void testAssociativeNestingExecution() {
+        // Test A + B + C (Should be computed as (A+B)+C)
+        LinearAlgebraEngine engine = new LinearAlgebraEngine(2);
+        
+        double[][] d1 = {{1.0}};
+        double[][] d2 = {{2.0}};
+        double[][] d3 = {{3.0}};
+        
+        ComputationNode n1 = new ComputationNode(d1);
+        ComputationNode n2 = new ComputationNode(d2);
+        ComputationNode n3 = new ComputationNode(d3);
+        
+        // Create node with 3 children
+        ComputationNode root = new ComputationNode(ComputationNodeType.ADD, Arrays.asList(n1, n2, n3));
+        
+        ComputationNode resultNode = engine.run(root);
+        double[][] result = resultNode.getMatrix();
+        
+        assertEquals(6.0, result[0][0]);
+    }
+
+    @Test
+    void testMixedOperations() {
+        // Test (A + B) * C
+        // ([1] + [2]) * [3] = [3] * [3] = [9]
+        LinearAlgebraEngine engine = new LinearAlgebraEngine(2);
+        
+        ComputationNode A = new ComputationNode(new double[][]{{1.0}});
+        ComputationNode B = new ComputationNode(new double[][]{{2.0}});
+        ComputationNode C = new ComputationNode(new double[][]{{3.0}});
+        
+        ComputationNode addNode = new ComputationNode(ComputationNodeType.ADD, Arrays.asList(A, B));
+        ComputationNode root = new ComputationNode(ComputationNodeType.MULTIPLY, Arrays.asList(addNode, C));
+        
+        ComputationNode resultNode = engine.run(root);
+        assertEquals(9.0, resultNode.getMatrix()[0][0]);
     }
 }

@@ -110,4 +110,48 @@ class SharedVectorTest {
         assertEquals(-0.0, v.get(1), 0.0001); // -0.0 is effectively 0.0
         assertEquals(5.0, v.get(2));
     }
+
+    @Test
+        void testVecMatMulSuccess() {
+            // Vector: [1, 2]
+            // Matrix (stored as columns): [[3, 4], [5, 6]]
+            // Calculation: 1*3 + 2*4 = 11, 1*5 + 2*6 = 17 -> Result [11, 17]
+            
+            SharedVector v = new SharedVector(new double[]{1.0, 2.0}, VectorOrientation.ROW_MAJOR);
+            
+            double[][] matData = {
+                {3.0, 5.0},
+                {4.0, 6.0}
+            };
+            SharedMatrix mat = new SharedMatrix();
+            mat.loadColumnMajor(matData); // Columns will be {3,4} and {5,6}
+
+            v.vecMatMul(mat);
+
+            assertEquals(2, v.length());
+            assertEquals(11.0, v.get(0));
+            assertEquals(17.0, v.get(1));
+        }
+
+        @Test
+        void testVecMatMulThrowsOnDimensionMismatch() {
+            // Vector length 2, Matrix column length 3
+            SharedVector v = new SharedVector(new double[]{1.0, 2.0}, VectorOrientation.ROW_MAJOR);
+            double[][] matData = {{1, 2}, {3, 4}, {5, 6}}; // 3 rows, 2 cols
+            SharedMatrix mat = new SharedMatrix();
+            mat.loadColumnMajor(matData);
+
+            assertThrows(IllegalArgumentException.class, () -> v.vecMatMul(mat));
+        }
+
+        @Test
+        void testVecMatMulThrowsOnOrientationMismatch() {
+            // Matrix must be COLUMN_MAJOR
+            SharedVector v = new SharedVector(new double[]{1.0, 2.0}, VectorOrientation.ROW_MAJOR);
+            double[][] matData = {{1, 2}, {3, 4}};
+            SharedMatrix mat = new SharedMatrix();
+            mat.loadRowMajor(matData); // Invalid for vecMatMul
+
+            assertThrows(IllegalArgumentException.class, () -> v.vecMatMul(mat));
+        }
 }

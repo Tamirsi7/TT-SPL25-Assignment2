@@ -1,6 +1,7 @@
 package scheduling;
 
 import org.junit.jupiter.api.Test;
+import java.util.Collections;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.List;
 import java.util.ArrayList;
@@ -9,19 +10,28 @@ import static org.junit.jupiter.api.Assertions.*;
 class TiredExecutorTest {
 
     @Test
+    void testConstructorThrowsOnInvalidThreadCount() {
+        // Edge Case: 0 threads should throw exception
+        assertThrows(IllegalArgumentException.class, () -> new TiredExecutor(0));
+        
+        // Edge Case: Negative threads should throw exception
+        assertThrows(IllegalArgumentException.class, () -> new TiredExecutor(-1));
+    }
+
+    @Test
     void testSubmitAllBlocksUntilCompletion() {
-        // Verify that submitAll waits for all tasks to finish
+        // Main Logic Test: Verify that submitAll waits (blocks) until all tasks are finished.
+        // This is crucial for the wait/notify implementation.
         TiredExecutor executor = new TiredExecutor(4);
         AtomicInteger counter = new AtomicInteger(0);
+        int numTasks = 100; // Sufficient number to ensure concurrency
         
-        int numTasks = 50;
         List<Runnable> tasks = new ArrayList<>();
-        
         for (int i = 0; i < numTasks; i++) {
             tasks.add(() -> {
                 try { 
-                    // Simulate some work
-                    Thread.sleep(10); 
+                    // Simulate work (short sleep to trigger context switches)
+                    Thread.sleep(2); 
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                 }
@@ -29,22 +39,74 @@ class TiredExecutorTest {
             });
         }
         
+        long start = System.currentTimeMillis();
+        executor.submitAll(tasks); // Should block here until inFlight becomes 0
+        long end = System.currentTimeMillis();
+        
+        // Verify all tasks ran
+        assertEquals(numTasks, counter.get(), "All tasks must be finished after submitAll returns");
+        
+        // Sanity check: execution should take at least some time (proving it didn't return immediately)
+        assertTrue((end - start) > 0, "Execution time should be greater than 0");
+
+        try { executor.shutdown(); } catch (InterruptedException e) {}
+    }
+
+    @Test
+    void testSubmitAllWithEmptyList() {
+        // Edge Case: Submitting an empty list.
+        // With wait/notify, we must ensure the main thread doesn't wait indefinitely 
+        // if inFlight is already 0.
+        TiredExecutor executor = new TiredExecutor(2);
+        
+        List<Runnable> emptyTasks = Collections.emptyList();
+        
+        // This should return immediately and not hang
+        assertDoesNotThrow(() -> executor.submitAll(emptyTasks));
+        
+        try { executor.shutdown(); } catch (InterruptedException e) {}
+    }
+
+    @Test
+    void testSubmitSingleTask() {
+        // Basic functionality check for single submission
+        TiredExecutor executor = new TiredExecutor(1);
+        AtomicInteger counter = new AtomicInteger(0);
+        
+        executor.submit(() -> counter.incrementAndGet());
+        
+        // Give it a moment to finish (since submit() is non-blocking, unlike submitAll)
+        try { Thread.sleep(100); } catch (InterruptedException e) {}
+        
+        assertEquals(1, counter.get());
+        
+        try { executor.shutdown(); } catch (InterruptedException e) {}
+    }
+
+    @Test
+    void testStressTest() {
+        // Stress Test: Run many small tasks to ensure race conditions in notify/wait are handled.
+        // If notify() is missed, this test might hang or fail.
+        int threads = 8;
+        TiredExecutor executor = new TiredExecutor(threads);
+        int numTasks = 1000;
+        AtomicInteger counter = new AtomicInteger(0);
+        
+        List<Runnable> tasks = new ArrayList<>();
+        for (int i = 0; i < numTasks; i++) {
+            tasks.add(counter::incrementAndGet);
+        }
+        
         executor.submitAll(tasks);
         
-        // If we reached here, all tasks should be done
-        assertEquals(numTasks, counter.get(), "Executor should verify all tasks completed before returning");
+        assertEquals(numTasks, counter.get(), "Stress test failed: not all tasks completed");
         
-        // Clean up
-        try {
-            executor.shutdown();
-        } catch (InterruptedException e) {
-            // Ignore for test
-        }
+        try { executor.shutdown(); } catch (InterruptedException e) {}
     }
 
     @Test
     void testWorkerReportFormat() {
-        // Verify the report string structure
+        // Verify the report string structure contains expected headers
         TiredExecutor executor = new TiredExecutor(2);
         String report = executor.getWorkerReport();
         
@@ -52,16 +114,66 @@ class TiredExecutorTest {
         assertTrue(report.contains("Worker ID"), "Report should contain 'Worker ID'");
         assertTrue(report.contains("Fatigue status"), "Report should contain 'Fatigue status'");
         
-        try {
-            executor.shutdown();
-        } catch (InterruptedException e) {}
+        try { executor.shutdown(); } catch (InterruptedException e) {}
     }
 
     @Test
-    void testConstructorThrowsOnInvalidThreadCount() {
-        // Edge Case: 0 threads
-        assertThrows(IllegalArgumentException.class, () -> new TiredExecutor(0));
-        // Edge Case: Negative threads
-        assertThrows(IllegalArgumentException.class, () -> new TiredExecutor(-1));
+    void testFairnessAndFatigueBalance() throws NoSuchFieldException, IllegalAccessException {
+        // 1. Create an Executor with a fixed number of threads
+        int numThreads = 5;
+        TiredExecutor executor = new TiredExecutor(numThreads);
+        
+        // 2. Submit a large number of short tasks to allow the balancing mechanism to kick in.
+        // If we run too few tasks, the load balancing effect might not be statistically visible.
+        int numTasks = 2000;
+        List<Runnable> tasks = new ArrayList<>();
+        for (int i = 0; i < numTasks; i++) {
+            tasks.add(() -> {
+                try { 
+                    // Simulate very short work (1ms)
+                    Thread.sleep(1); 
+                } catch (InterruptedException e) {}
+            });
+        }
+        
+        executor.submitAll(tasks);
+        
+        // 3. Use Reflection to access the private 'workers' array to inspect internal state
+        java.lang.reflect.Field workersField = TiredExecutor.class.getDeclaredField("workers");
+        workersField.setAccessible(true);
+        TiredThread[] workers = (TiredThread[]) workersField.get(executor);
+        
+        // 4. Collect data and calculate gaps
+        double minFatigue = Double.MAX_VALUE;
+        double maxFatigue = Double.MIN_VALUE;
+        
+        System.out.println("--- Fairness Report ---");
+        for (TiredThread worker : workers) {
+            double fatigue = worker.getFatigue();
+            long timeUsed = worker.getTimeUsed();
+            System.out.println("Worker " + worker.getWorkerId() + 
+                             " | Fatigue: " + String.format("%.2f", fatigue) + 
+                             " | Time: " + timeUsed + "ns");
+            
+            if (fatigue < minFatigue) minFatigue = fatigue;
+            if (fatigue > maxFatigue) maxFatigue = fatigue;
+        }
+        System.out.println("-----------------------");
+
+        // 5. Assert Fairness: 
+        // The priority queue should ensure that the Fatigue score is balanced across workers.
+        // Therefore, the difference between the max and min fatigue should be relatively small.
+        // Since each task takes ~1ms (1,000,000ns), the max difference shouldn't exceed 
+        // the "cost" of a few tasks times the max factor.
+        
+        double difference = maxFatigue - minFatigue;
+        
+        // We allow a reasonable gap (e.g., 50M units, roughly equivalent to 10-20ms of work drift)
+        // If the queue works correctly, the gap should be small. 
+        // If it was random, the gap would likely be huge.
+        assertTrue(difference < 50_000_000, 
+            "Load balancing failed! The gap between most and least tired worker is too large: " + difference);
+
+        try { executor.shutdown(); } catch (InterruptedException e) {}
     }
 }
