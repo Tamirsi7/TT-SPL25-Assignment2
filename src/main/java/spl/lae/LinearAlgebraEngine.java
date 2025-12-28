@@ -21,25 +21,26 @@ public class LinearAlgebraEngine {
     }
 
     public ComputationNode run(ComputationNode computationRoot) {
-        //if the given root is matrix type - return it
+        // if the given root is matrix type - return it
         if (computationRoot.getNodeType() == ComputationNodeType.MATRIX) {
             return computationRoot;
         }
-        //while root is not a matrix 
-        while (computationRoot.getNodeType() != ComputationNodeType.MATRIX) { 
-            //find a resolvable node
+        // while root is not a matrix
+        while (computationRoot.getNodeType() != ComputationNodeType.MATRIX) {
+            // find a resolvable node
             ComputationNode curr = computationRoot.findResolvable();
-            //if resolveable node is null -> he is a matrix, so stop the loop
+            // if resolveable node is null -> he is a matrix, so stop the loop
             if (curr == null) {
                 break;
             }
-            //if resolveable node has more than 2 children - "fix the tree" with associativeNesting method
+            // if resolveable node has more than 2 children - "fix the tree" with
+            // associativeNesting method
             if (curr.getChildren().size() > 2) {
                 curr.associativeNesting();
-                //dont try to compute curr node - we will find the node in future iterations
+                // dont try to compute curr node - we will find the node in future iterations
                 continue;
             }
-            //load and compute curr node 
+            // load and compute curr node
             loadAndCompute(curr);
         }
         return computationRoot;
@@ -57,7 +58,7 @@ public class LinearAlgebraEngine {
             // Creating the tasks in the executer and running them
             executor.submitAll(createAddTasks());
         }
-          // Case 2 - Multiply operator:
+        // Case 2 - Multiply operator:
         else if (node.getNodeType() == ComputationNodeType.MULTIPLY) {
             // Loading the right matrix (index 1) as columns
             rightMatrix.loadColumnMajor(node.getChildren().get(1).getMatrix());
@@ -78,7 +79,8 @@ public class LinearAlgebraEngine {
         }
         // Locking the left matrix with readRowMajor, so we can read the correct data
         result = leftMatrix.readRowMajor();
-        // Using the "result" method, making sure the operator becomes the calculated matrix, without childrens
+        // Using the "result" method, making sure the operator becomes the calculated
+        // matrix, without childrens
         node.resolve(result);
     }
 
@@ -86,10 +88,12 @@ public class LinearAlgebraEngine {
         // creating an array of runnable (tasks) in the size of the leftMatrix dimension
         List<Runnable> res = new ArrayList<Runnable>(leftMatrix.length());
         // creating n tasks , where n is the number of rows
-        for (int i = 0 ; i < leftMatrix.length() ; i++) {
-            // Each iteration, the loop "sets" constant index, so when the future task will happen it has specific index.
+        for (int i = 0; i < leftMatrix.length(); i++) {
+            // Each iteration, the loop "sets" constant index, so when the future task will
+            // happen it has specific index.
             final int index = i;
-            // creating lambda for future task, adding the matching row vector from the right matrix to the left
+            // creating lambda for future task, adding the matching row vector from the
+            // right matrix to the left
             res.add(() -> {
                 // locking the relevant vectors for write/read in each matrix
                 SharedVector v1 = leftMatrix.get(index);
@@ -101,7 +105,7 @@ public class LinearAlgebraEngine {
                 try {
                     v1.add(v2);
                 } finally {
-                // unlocking both vectors in opposite order
+                    // unlocking both vectors in opposite order
                     v2.readUnlock();
                     v1.writeUnlock();
                 }
@@ -122,19 +126,25 @@ public class LinearAlgebraEngine {
                 SharedVector v1 = leftMatrix.get(index);
                 // locking left matrix vector to write before multiplying
                 v1.writeLock();
-                // locking all vectors in right matrix for read
-                for (int j = 0 ; j < rightMatrix.length() ; j++) {
-                    rightMatrix.get(j).readLock();
-                }
-                // applying multiply method on vector x rightMatrix
+                
+                int lockedCount =0; //counter locks
                 try {
-                    v1.vecMatMul(rightMatrix);
-                // unlocking all vectors 
-                } finally {
+                    // locking all right matrix vectors for read before multiplying
                     for (int k = 0 ; k < rightMatrix.length() ; k++) {
+                        rightMatrix.get(k).readLock();
+                        lockedCount++;
+                    }
+                    // applying multiply method on vector x rightMatrix
+                    v1.vecMatMul(rightMatrix);
+                
+                } finally {
+                    //unlocking only the locked right matrix vectors
+                    //this protect us from crashing mid loop
+                    for (int k = 0 ; k < lockedCount ; k++) {
                         rightMatrix.get(k).readUnlock();
                     }
                 }
+                // unlocking left matrix vector after multiplying
                 v1.writeUnlock();
             });
         }
@@ -145,10 +155,12 @@ public class LinearAlgebraEngine {
         // creating an array of runnable (tasks) in the size of the leftMatrix dimension
         List<Runnable> res = new ArrayList<Runnable>(leftMatrix.length());
         // creating n tasks , where n is the number of rows
-        for (int i = 0 ; i < leftMatrix.length() ; i++) {
-            // Each iteration, the loop "sets" constant index, so when the future task will happen it has specific index.
+        for (int i = 0; i < leftMatrix.length(); i++) {
+            // Each iteration, the loop "sets" constant index, so when the future task will
+            // happen it has specific index.
             final int index = i;
-            // creating lambda for future task, perform negate method for each row in the left matrix.
+            // creating lambda for future task, perform negate method for each row in the
+            // left matrix.
             res.add(() -> {
                 SharedVector v1 = leftMatrix.get(index);
                 // locking leftMatrix vector for write, performing negate and then unlocking:
@@ -167,10 +179,12 @@ public class LinearAlgebraEngine {
         // creating an array of runnable (tasks) in the size of the leftMatrix dimension
         List<Runnable> res = new ArrayList<Runnable>(leftMatrix.length());
         // creating n tasks , where n is the number of rows
-        for (int i = 0 ; i < leftMatrix.length() ; i++) {
-            // Each iteration, the loop "sets" constant index, so when the future task will happen it has specific index.
+        for (int i = 0; i < leftMatrix.length(); i++) {
+            // Each iteration, the loop "sets" constant index, so when the future task will
+            // happen it has specific index.
             final int index = i;
-            // creating lambda for future task, perform transpose method for each row in the left matrix.
+            // creating lambda for future task, perform transpose method for each row in the
+            // left matrix.
             res.add(() -> {
                 SharedVector v1 = leftMatrix.get(index);
                 // locking leftMatrix vector for write, performing transform and then unlocking:
@@ -178,7 +192,7 @@ public class LinearAlgebraEngine {
                 try {
                     v1.transpose();
                 } finally {
-                    v1.writeUnlock();    
+                    v1.writeUnlock();
                 }
             });
         }

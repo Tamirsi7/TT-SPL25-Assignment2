@@ -33,8 +33,12 @@ public class Main {
       // writing the result in output
       OutputWriter.write(resultMat, outputPath);
     } catch (Exception e) {
-      // logging errors on output
-      OutputWriter.write(e.getMessage(), outputPath);
+      try {
+        // logging errors on output
+        OutputWriter.write(e.getMessage(), outputPath);
+      } catch (Exception ex) {
+        System.err.println("Failed to write Error report to output file");
+      }
     }
   }
 }
