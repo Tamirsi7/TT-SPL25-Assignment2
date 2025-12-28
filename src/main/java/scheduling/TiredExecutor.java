@@ -34,13 +34,19 @@ public class TiredExecutor {
             TiredThread currThread = idleMinHeap.take();
             // updating num of inFlights with atomic method
             inFlight.incrementAndGet();
-            // creating lambda function (one-time use class), to make sure workers return to the heap after running.
+            // creating lambda function (one-time use class), to make sure workers return to
+            // the heap after running.
             Runnable boomerangTask = () -> {
                 try {
                     task.run();
                 } finally {
-                    inFlight.decrementAndGet();
-                    idleMinHeap.offer(currThread);
+                    // if this was the last task, we can notify all waiting threads
+                    if (inFlight.decrementAndGet() == 0) {
+                        synchronized (this) { // synchronizing on the executor object
+                            this.notifyAll();
+                        }
+                    }
+                    idleMinHeap.add(currThread); // returning the worker to the heap
                 }
             };
             // assigning the worker the given task and making sure it is returning to heap
@@ -58,12 +64,20 @@ public class TiredExecutor {
         for (Runnable t : tasks) {
             submit(t);
         }
-        // checking if there are still any open tasks
-        while (inFlight.get() > 0) {
-            // If there are, don't check activly - release the CPU for other threads to save
-            // time and effiency.
-            Thread.yield();
+        //locking TiredExecuter
+        synchronized (this) {
+            //Using a while loop to check the condition to protect against Unexepected wakeups
+            while (inFlight.get() > 0){
+                try {
+                    //Using wait() to block the current thread until notified
+                    this.wait();
+                } catch (InterruptedException e) {
+                    // Restoring the interrupt flag so the caller up the stack knows an interrupt occurred
+                    Thread.currentThread().interrupt();
+                }
+            }
         }
+        
     }
 
     public void shutdown() throws InterruptedException {
