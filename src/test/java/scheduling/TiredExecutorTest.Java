@@ -156,20 +156,34 @@ class TiredExecutorTest {
         workersField.setAccessible(true);
         TiredThread[] workers = (TiredThread[]) workersField.get(executor);
         
-        // 6. Collect data and calculate gaps
+        // 6. Collect data, Calculate Average for Normalization, and find gaps
+        double totalFatigue = 0;
         double minFatigue = Double.MAX_VALUE;
         double maxFatigue = Double.MIN_VALUE;
         
-        System.out.println("--- Fairness Report ---");
+        // First pass: Calculate total and find min/max for assertion
         for (TiredThread worker : workers) {
-            double fatigue = worker.getFatigue();
-            long timeUsed = worker.getTimeUsed();
-            System.out.println("Worker " + worker.getWorkerId() + 
-                             " | Fatigue: " + String.format("%.2f", fatigue) + 
-                             " | Time: " + timeUsed + "ns");
-            
-            if (fatigue < minFatigue) minFatigue = fatigue;
-            if (fatigue > maxFatigue) maxFatigue = fatigue;
+            double f = worker.getFatigue();
+            totalFatigue += f;
+            if (f < minFatigue) minFatigue = f;
+            if (f > maxFatigue) maxFatigue = f;
+        }
+
+        // Calculate average
+        double averageFatigue = totalFatigue / workers.length;
+
+        System.out.println("--- Fairness Report ---");
+        // Second pass: Print normalized values
+        for (TiredThread worker : workers) {
+            double currentFatigue = worker.getFatigue();
+            double normalizedFatigue = currentFatigue / averageFatigue;
+
+            // Output format: Worker ID | Norm (e.g., 1.01) | Raw | Time
+            System.out.printf("Worker %d | Fatigue (Norm): %.3f | Raw: %.0f | Time: %d ns%n", 
+                    worker.getWorkerId(), 
+                    normalizedFatigue, 
+                    currentFatigue, 
+                    worker.getTimeUsed());
         }
         System.out.println("-----------------------");
 
