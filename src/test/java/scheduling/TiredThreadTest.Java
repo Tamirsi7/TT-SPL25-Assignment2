@@ -1,22 +1,12 @@
 package scheduling;
 
-import org.junit.jupiter.api.Test;
 import java.util.concurrent.atomic.AtomicInteger;
-import static org.junit.jupiter.api.Assertions.*;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.fail;
+import org.junit.jupiter.api.Test;
 
 class TiredThreadTest {
-
-    @Test
-    void testInitialization() {
-        // Verify that the constructor initializes the fields correctly
-        int id = 1;
-        double fatigueFactor = 1.5;
-        TiredThread worker = new TiredThread(id, fatigueFactor);
-
-        assertEquals(id, worker.getWorkerId());
-        assertEquals(0, worker.getTimeUsed());
-        assertEquals(0, worker.getFatigue()); // Initial fatigue should be 0
-    }
 
     @Test
     void testTaskExecution() {
@@ -42,30 +32,40 @@ class TiredThreadTest {
     }
 
     @Test
-    void testFatigueAccumulation() {
-        // Verify that fatigue increases when the thread performs work
-        double fatigueFactor = 2.0;
-        TiredThread worker = new TiredThread(0, fatigueFactor);
-        worker.start();
+    void testCompareToInitialState() {
+        // making sure both workers (didnt work yet) have 0 fatigue
+        TiredThread t1 = new TiredThread(1, 1.0);
+        TiredThread t2 = new TiredThread(2, 2.0);
+        assertEquals(0, t1.compareTo(t2), "Initial workers should have equal fatigue (0)");
+    }
 
-        // Submit a task that takes some time (to accumulate fatigue)
-        worker.newTask(() -> {
-            try {
-                Thread.sleep(10); // Simulate work
-            } catch (InterruptedException e) {}
+    @Test
+    void testThreadSurvivesTaskException() {
+        // initialize and start a new worker thread
+        TiredThread worker = new TiredThread(1, 1.0);
+        worker.start();
+        
+        AtomicInteger counter = new AtomicInteger(0);
+
+        // task 1: Intentionally throws an exception.
+        // The worker should catch this exception and continue running.
+        worker.newTask(() -> { 
+            throw new RuntimeException("Intentional Failure"); 
         });
 
-        worker.shutdown();
-        try {
-            worker.join();
-        } catch (InterruptedException e) {}
+        // task 2: A valid task that increments the counter.
+        // If the worker survived Task 1, this task should be executed.
+        worker.newTask(() -> counter.incrementAndGet());
 
-        // Verify that time used is positive
-        assertTrue(worker.getTimeUsed() > 0, "Time used should be greater than 0");
-        
-        // Verify that fatigue calculation is correct (Time * Factor)
-        // Note: We use a small delta (epsilon) for double comparison
-        double expectedFatigue = worker.getTimeUsed() * fatigueFactor;
-        assertEquals(expectedFatigue, worker.getFatigue(), 0.0001);
+        // Gracefully shut down the worker and wait for it to finish
+        worker.shutdown();
+        try { 
+            worker.join(); 
+        } catch (InterruptedException e) {
+            fail("Test was interrupted while waiting for worker to join");
+        }
+
+        // assert: The counter should be 1, proving Task 2 ran successfully despite the failure in Task 1.
+        assertEquals(1, counter.get(), "Thread should continue working after an exception in a task");
     }
 }

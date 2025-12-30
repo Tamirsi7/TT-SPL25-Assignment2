@@ -1,9 +1,11 @@
 package parser;
 
-import org.junit.jupiter.api.Test;
 import java.util.ArrayList;
 import java.util.List;
-import static org.junit.jupiter.api.Assertions.*;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import org.junit.jupiter.api.Test;
 
 class ComputationNodeTest {
 
@@ -17,11 +19,11 @@ class ComputationNodeTest {
     @Test
     void testFindResolvableImmediate() {
         // Case: (MATRIX + MATRIX) -> Root is resolvable
-        ComputationNode m1 = new ComputationNode(new double[][]{{1}});
-        ComputationNode m2 = new ComputationNode(new double[][]{{2}});
+        ComputationNode matrix1 = new ComputationNode(new double[][]{{1}});
+        ComputationNode matrix2 = new ComputationNode(new double[][]{{2}});
         List<ComputationNode> children = new ArrayList<>();
-        children.add(m1);
-        children.add(m2);
+        children.add(matrix1);
+        children.add(matrix2);
         
         ComputationNode root = new ComputationNode(ComputationNodeType.ADD, children);
         
@@ -32,19 +34,19 @@ class ComputationNodeTest {
     void testFindResolvableDeep() {
         // Case: (MATRIX + (MATRIX * MATRIX))
         // The deeper node (MULTIPLY) must be resolved first
-        ComputationNode m1 = new ComputationNode(new double[][]{{1}});
-        ComputationNode m2 = new ComputationNode(new double[][]{{2}});
-        ComputationNode m3 = new ComputationNode(new double[][]{{3}});
+        ComputationNode matrix1 = new ComputationNode(new double[][]{{1}});
+        ComputationNode matrix2 = new ComputationNode(new double[][]{{2}});
+        ComputationNode matrix3 = new ComputationNode(new double[][]{{3}});
         
         // Build right branch: (2 * 3)
         List<ComputationNode> multChildren = new ArrayList<>();
-        multChildren.add(m2);
-        multChildren.add(m3);
+        multChildren.add(matrix2);
+        multChildren.add(matrix3);
         ComputationNode multNode = new ComputationNode(ComputationNodeType.MULTIPLY, multChildren);
         
         // Build root: (1 + multNode)
         List<ComputationNode> addChildren = new ArrayList<>();
-        addChildren.add(m1);
+        addChildren.add(matrix1);
         addChildren.add(multNode);
         ComputationNode root = new ComputationNode(ComputationNodeType.ADD, addChildren);
 

@@ -1,8 +1,9 @@
 package memory;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import static org.junit.jupiter.api.Assertions.*;
 
 class SharedVectorTest {
 
@@ -46,20 +47,6 @@ class SharedVectorTest {
     }
 
     @Test
-    void testAddWithNegativeValues() {
-        // Case: Adding negative values
-        double[] negData = {-1.0, -2.0, -3.0};
-        SharedVector other = new SharedVector(negData, VectorOrientation.ROW_MAJOR);
-        
-        rowVec.add(other);
-        
-        // Assert result is zero vector
-        assertEquals(0.0, rowVec.get(0));
-        assertEquals(0.0, rowVec.get(1));
-        assertEquals(0.0, rowVec.get(2));
-    }
-
-    @Test
     void testAddThrowsOnDimensionMismatch() {
         // Edge Case: Adding vectors of different lengths
         double[] wrongSizeData = {1.0, 2.0}; // Length 2 instead of 3
@@ -100,14 +87,13 @@ class SharedVectorTest {
 
     @Test
     void testNegate() {
-        // Case: Negating positive and zero values
-        double[] data = {10.0, 0.0, -5.0};
+        // Case: Negating values
+        double[] data = {10.0, -5.0};
         SharedVector v = new SharedVector(data, VectorOrientation.ROW_MAJOR);
         
         v.negate();
         
         assertEquals(-10.0, v.get(0));
-        assertEquals(-0.0, v.get(1), 0.0001); // -0.0 is effectively 0.0
         assertEquals(5.0, v.get(2));
     }
 

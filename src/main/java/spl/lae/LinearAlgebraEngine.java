@@ -1,5 +1,6 @@
 package spl.lae;
 
+import java.net.SocketPermission;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -46,6 +47,7 @@ public class LinearAlgebraEngine {
             return computationRoot;
         } finally {
             if (executor != null) {
+                System.out.println(executor.getWorkerReport());
                 try {
                     executor.shutdown();
                 } catch (InterruptedException e) {

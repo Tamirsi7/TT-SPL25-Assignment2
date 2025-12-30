@@ -54,7 +54,7 @@ class SharedMatrixTest {
     }
 
     @Test
-    void testReadRowMajorFromColumnMajorStorage() {
+    void testColumnMajorReading() {
         // Edge Case: Ensure readRowMajor reconstructs the original matrix correctly
         // even if it was stored as column-major internally
         double[][] data = {{1, 2}, {3, 4}};
