@@ -83,8 +83,6 @@ public class LinearAlgebraEngine {
         else if (node.getNodeType() == ComputationNodeType.TRANSPOSE) {
             // Creating the tasks in the executer and running them
             executor.submitAll(createTransposeTasks());
-            // Changing orientation in the matrix "defintion" level
-            leftMatrix.setOrientation(VectorOrientation.COLUMN_MAJOR);
         }
         // Locking the left matrix with readRowMajor, so we can read the correct data
         result = leftMatrix.readRowMajor();

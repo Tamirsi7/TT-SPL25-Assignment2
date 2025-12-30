@@ -3,8 +3,6 @@ package memory;
 public class SharedMatrix {
 
     private volatile SharedVector[] vectors = {}; // underlying vectors
-    // added field: matrix orientation
-    private VectorOrientation MatrixOrientation = VectorOrientation.ROW_MAJOR;
 
     public SharedMatrix() {
         // notice the matrix is initialized as empty matrix in vectors field.
@@ -17,7 +15,6 @@ public class SharedMatrix {
     public void loadRowMajor(double[][] matrix) {
         //we dont need to lock the matrix because no thread "knows" the loaded matrix and old matrix is irrelevant
         // initializing this.orientation and vectors according to given matrix
-        this.MatrixOrientation = VectorOrientation.ROW_MAJOR;
         this.vectors = new SharedVector[matrix.length];
         // looping through matrix row vectors and loading them to this.vectors in the
         // matching slot
@@ -29,8 +26,6 @@ public class SharedMatrix {
     public void loadColumnMajor(double[][] matrix) {
         //we dont need to lock the matrix because no thread "knows" the loaded matrix and old matrix is irrelevant
         // initializing this.orientation according to given matrix
-        this.MatrixOrientation = VectorOrientation.COLUMN_MAJOR;
-
         if (matrix.length == 0) { // making sure "int matrixCols = matrix[0].length;" will not crash
             this.vectors = new SharedVector[0];
             return;
@@ -63,7 +58,7 @@ public class SharedMatrix {
                 return new double[0][0];
             }
             // case 1: matrix is rows major
-            if (MatrixOrientation == VectorOrientation.ROW_MAJOR) {
+            if (getOrientation() == VectorOrientation.ROW_MAJOR) {
                 // initializing resultMatrix
                 resultMatrix = new double[currVectors.length][currVectors[0].length()];
                 // filling resultMatrix:
@@ -98,7 +93,11 @@ public class SharedMatrix {
     }
 
     public VectorOrientation getOrientation() {
-        return this.MatrixOrientation;
+        if(vectors!=null && vectors.length>0){
+            return vectors[0].getOrientation();
+        }
+        // default orientation for empty matrix
+        return VectorOrientation.ROW_MAJOR; 
     }
 
     private void acquireAllVectorReadLocks(SharedVector[] vecs) {
@@ -123,10 +122,5 @@ public class SharedMatrix {
         for (int i = 0; i < vecs.length; i++) {
             vecs[i].writeUnlock();
         }
-    }
-    
-    //adding setter for matrix orientatino
-    public void setOrientation (VectorOrientation orientation) {
-        this.MatrixOrientation = orientation;
     }
 }
