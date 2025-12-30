@@ -86,5 +86,4 @@ class TiredExecutorTest {
         
         try { executor.shutdown(); } catch (InterruptedException e) {}
     }
-
 }

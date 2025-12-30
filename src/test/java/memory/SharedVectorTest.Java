@@ -94,7 +94,7 @@ class SharedVectorTest {
         v.negate();
         
         assertEquals(-10.0, v.get(0));
-        assertEquals(5.0, v.get(2));
+        assertEquals(5.0, v.get(1));
     }
 
     @Test
