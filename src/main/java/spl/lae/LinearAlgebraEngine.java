@@ -21,29 +21,38 @@ public class LinearAlgebraEngine {
     }
 
     public ComputationNode run(ComputationNode computationRoot) {
-        // if the given root is matrix type - return it
-        if (computationRoot.getNodeType() == ComputationNodeType.MATRIX) {
+        try {
+            // if the given root is matrix type - return it
+            if (computationRoot.getNodeType() == ComputationNodeType.MATRIX) {
+                return computationRoot;
+            }
+            // while root is not a matrix
+            while (computationRoot.getNodeType() != ComputationNodeType.MATRIX) {
+                // find a resolvable node
+                ComputationNode curr = computationRoot.findResolvable();
+                // if resolveable node is null -> he is a matrix, so stop the loop
+                if (curr == null) {
+                    break;
+                }
+                // if resolveable node has more than 2 children - "fix the tree" with associativeNesting method
+                if (curr.getChildren().size() > 2) {
+                    curr.associativeNesting();
+                    // dont try to compute curr node - we will find the node in future iterations
+                    continue;
+                }
+                // load and compute curr node
+                loadAndCompute(curr);
+            }
             return computationRoot;
-        }
-        // while root is not a matrix
-        while (computationRoot.getNodeType() != ComputationNodeType.MATRIX) {
-            // find a resolvable node
-            ComputationNode curr = computationRoot.findResolvable();
-            // if resolveable node is null -> he is a matrix, so stop the loop
-            if (curr == null) {
-                break;
+        } finally {
+            if (executor != null) {
+                try {
+                    executor.shutdown();
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
             }
-            // if resolveable node has more than 2 children - "fix the tree" with
-            // associativeNesting method
-            if (curr.getChildren().size() > 2) {
-                curr.associativeNesting();
-                // dont try to compute curr node - we will find the node in future iterations
-                continue;
-            }
-            // load and compute curr node
-            loadAndCompute(curr);
         }
-        return computationRoot;
     }
 
     public void loadAndCompute(ComputationNode node) {
@@ -118,29 +127,31 @@ public class LinearAlgebraEngine {
         // creating an array of runnable (tasks) in the size of the leftMatrix dimension
         List<Runnable> res = new ArrayList<Runnable>(leftMatrix.length());
         // creating n tasks , where n is the number of rows
-        for (int i = 0 ; i < leftMatrix.length() ; i++) {
-            // Each iteration, the loop "sets" constant index, so when the future task will happen it has specific index.
+        for (int i = 0; i < leftMatrix.length(); i++) {
+            // Each iteration, the loop "sets" constant index, so when the future task will
+            // happen it has specific index.
             final int index = i;
-            // creating lambda for future task, perform row × matrix for each row in the left matrix.
+            // creating lambda for future task, perform row × matrix for each row in the
+            // left matrix.
             res.add(() -> {
                 SharedVector v1 = leftMatrix.get(index);
                 // locking left matrix vector to write before multiplying
                 v1.writeLock();
-                
-                int lockedCount =0; //counter locks
+
+                int lockedCount = 0; // counter locks
                 try {
                     // locking all right matrix vectors for read before multiplying
-                    for (int k = 0 ; k < rightMatrix.length() ; k++) {
+                    for (int k = 0; k < rightMatrix.length(); k++) {
                         rightMatrix.get(k).readLock();
                         lockedCount++;
                     }
                     // applying multiply method on vector x rightMatrix
                     v1.vecMatMul(rightMatrix);
-                
+
                 } finally {
-                    //unlocking only the locked right matrix vectors
-                    //this protect us from crashing mid loop
-                    for (int k = 0 ; k < lockedCount ; k++) {
+                    // unlocking only the locked right matrix vectors
+                    // this protect us from crashing mid loop
+                    for (int k = 0; k < lockedCount; k++) {
                         rightMatrix.get(k).readUnlock();
                     }
                 }
